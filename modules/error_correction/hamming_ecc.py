@@ -25,6 +25,30 @@ class HammingECC:
                 encoded_bits.extend(codeword)
         return ''.join(str(b) for b in encoded_bits)
 
+    def encode_bits(self, bits: str) -> str:
+        """
+        Encodes a string of '0'/'1' bits with Hamming(7,4), padding with zeros
+        to a multiple of 4. Returns the protected bit string.
+        """
+        padded = bits + "0" * (-len(bits) % 4)
+        encoded = []
+        for i in range(0, len(padded), 4):
+            encoded.extend(self._encode_nibble([int(b) for b in padded[i:i + 4]]))
+        return ''.join(str(b) for b in encoded)
+
+    def decode_bits(self, bits: str) -> Tuple[str, int]:
+        """
+        Decodes a Hamming(7,4)-protected bit string, correcting up to one flipped
+        bit per 7-bit block. Returns the data bits and the number of blocks corrected.
+        """
+        data = []
+        corrected_blocks = 0
+        for i in range(0, len(bits) - 6, 7):
+            nibble, corrected = self._decode_codeword([int(b) for b in bits[i:i + 7]])
+            data.extend(nibble)
+            corrected_blocks += int(corrected)
+        return ''.join(str(b) for b in data), corrected_blocks
+
     def _encode_nibble(self, nibble: list) -> list:
         """
         Encodes a list of 4 bits using Hamming(7,4).
@@ -76,7 +100,9 @@ class HammingECC:
         s1 = p1 ^ d1 ^ d2 ^ d4
         s2 = p2 ^ d1 ^ d3 ^ d4
         s3 = p3 ^ d2 ^ d3 ^ d4
-        syndrome = (s1 << 2) | (s2 << 1) | s3
+        # The syndrome is the 1-based position of the flipped bit: s1 is its
+        # lowest bit, s3 its highest.
+        syndrome = s1 | (s2 << 1) | (s3 << 2)
         corrected = False
         if syndrome != 0 and 1 <= syndrome <= 7:
             codeword[syndrome-1] ^= 1

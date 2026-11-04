@@ -25,6 +25,21 @@ class DNAEncoder:
                 dna_seq.append(self.BASES[two_bits])
         return ''.join(dna_seq)
 
+    def encode_bits(self, bits: str) -> str:
+        """
+        Encode a string of '0'/'1' bits directly, two bits per base
+        (A=00, C=01, G=10, T=11). An odd-length input is padded with one '0'.
+        """
+        if len(bits) % 2:
+            bits += '0'
+        return ''.join(self.BASES[int(bits[i:i + 2], 2)] for i in range(0, len(bits), 2))
+
+    def decode_bits(self, dna_sequence: str) -> str:
+        """
+        Decode a DNA sequence back to its bit string, two bits per base.
+        """
+        return ''.join(format(self.BASES.index(base), '02b') for base in dna_sequence)
+
     def decode(self, dna_sequence: str) -> str:
         """
         Decode a DNA sequence back to the string using 2-bits per base.

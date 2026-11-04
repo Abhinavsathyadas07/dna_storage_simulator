@@ -1,10 +1,7 @@
 # dna_storage_simulator/interface/web_dashboard/app.py
 
 from flask import Flask, request, render_template_string
-from modules.encoders import DNAEncoder
-from modules.compressors import HuffmanCompressor
-from modules.error_correction import HammingECC
-from modules.error_models import SubstitutionErrorModel
+from modules import pipeline
 
 app = Flask(__name__)
 
@@ -14,24 +11,7 @@ def index():
     if request.method == "POST":
         text = request.form["text"]
         error_rate = float(request.form.get("error_rate", 0.01))
-        compressor = HuffmanCompressor()
-        encoder = DNAEncoder()
-        ecc = HammingECC()
-        errors = SubstitutionErrorModel(error_rate)
-        codes, compressed = compressor.compress(text)
-        dna = encoder.encode(compressed)
-        ecc_bits = ecc.encode(compressed)
-        corrupted_dna = errors.introduce_errors(dna)
-        recovered, errors_corrected = ecc.decode(ecc_bits)
-        decompressed = compressor.decompress(codes, recovered)
-        result = {
-            "original": text,
-            "compressed": compressed,
-            "dna": dna,
-            "corrupted_dna": corrupted_dna,
-            "errors_corrected": errors_corrected,
-            "decompressed": decompressed,
-        }
+        result = pipeline.run(text, error_rate).to_dict()
     return render_template_string("""
         <h1>DNA Storage Simulator</h1>
         <form method="post">
