@@ -11,19 +11,21 @@ class SubstitutionErrorModel:
 
     BASES = ['A', 'C', 'G', 'T']
 
-    def __init__(self, error_rate: float = 0.01):
+    def __init__(self, error_rate: float = 0.01, seed=None):
         """
         error_rate: Probability (between 0 and 1) that any given base is substituted
+        seed: Optional seed, so a run's errors can be reproduced exactly
         """
         self.error_rate = error_rate
+        self.random = random.Random(seed)
 
     def introduce_errors(self, dna_sequence: str) -> str:
         result = []
         for base in dna_sequence:
-            if random.random() < self.error_rate:
+            if self.random.random() < self.error_rate:
                 # Substitute with a random base that's not the original
                 substitutes = [b for b in self.BASES if b != base]
-                new_base = random.choice(substitutes)
+                new_base = self.random.choice(substitutes)
                 result.append(new_base)
             else:
                 result.append(base)

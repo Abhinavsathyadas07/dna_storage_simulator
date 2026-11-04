@@ -1,10 +1,7 @@
 # dna_storage_simulator/main.py
 import argparse
 from datetime import datetime
-from modules.encoders import DNAEncoder
-from modules.compressors import HuffmanCompressor
-from modules.error_correction import HammingECC
-from modules.error_models import SubstitutionErrorModel
+from modules import pipeline
 from storage.database import SimpleDatabase
 
 def parse_args():
@@ -20,43 +17,10 @@ def parse_args():
 def run_pipeline(text, error_rate, db=None, batch_id=None):
     print(f"\nRunning DNA storage pipeline for: {text[:50]}{'...' if len(text) > 50 else ''}")
 
-    # Compression
-    compressor = HuffmanCompressor()
-    codes, compressed = compressor.compress(text)
-
-    # Encoding
-    encoder = DNAEncoder()
-    dna_seq = encoder.encode(compressed)
-
-    # ECC
-    ecc = HammingECC()
-    ecc_bits = ecc.encode(compressed)
-
-    # Error Model
-    error_model = SubstitutionErrorModel(error_rate)
-    corrupted_dna = error_model.introduce_errors(dna_seq)
-
-    # ECC Decoding
-    recovered, errors_corrected = ecc.decode(ecc_bits)
-
-    # Decompression
-    try:
-        decompressed = compressor.decompress(codes, recovered)
-    except Exception as e:
-        decompressed = f"[ERROR decompressing: {e}]"
+    pipeline_result = pipeline.run(text, error_rate)
 
     timestamp = datetime.now().isoformat()
-    result = {
-        "timestamp": timestamp,
-        "input": text,
-        "compressed_bits": compressed,
-        "dna_seq": dna_seq,
-        "corrupted_dna": corrupted_dna,
-        "ecc_bits": ecc_bits,
-        "decompressed": decompressed,
-        "errors_corrected": errors_corrected,
-        "batch_id": batch_id,
-    }
+    result = {"timestamp": timestamp, **pipeline_result.to_dict(), "batch_id": batch_id}
 
     # Save to database if provided
     if db is not None:
@@ -65,11 +29,13 @@ def run_pipeline(text, error_rate, db=None, batch_id=None):
         print(f"Saved to DB under key: {run_key}")
 
     print("Results:")
-    print(f"  Compressed: {len(compressed)} bits")
-    print(f"  DNA length: {len(dna_seq)}")
-    print(f"  ECC bits: {len(ecc_bits)}")
-    print(f"  Errors corrected: {errors_corrected}")
-    print(f"  Decompressed: {decompressed}")
+    print(f"  Compressed: {len(pipeline_result.compressed_bits)} bits")
+    print(f"  Protected (Hamming 7,4): {len(pipeline_result.protected_bits)} bits")
+    print(f"  DNA length: {len(pipeline_result.dna_seq)} bases")
+    print(f"  Bases substituted: {pipeline_result.substitutions}")
+    print(f"  Blocks corrected: {pipeline_result.blocks_corrected}")
+    print(f"  Decompressed: {pipeline_result.decompressed}")
+    print(f"  Recovered exactly: {pipeline_result.success}")
     return result
 
 def run_batch(input_file, error_rate, db_path):

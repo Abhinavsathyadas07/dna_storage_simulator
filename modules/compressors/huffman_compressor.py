@@ -39,7 +39,9 @@ class HuffmanCompressor:
             if node is None:
                 return
             if node.char is not None:
-                codes[node.char] = code
+                # A text with a single distinct character has a one-node tree;
+                # give it a one-bit code so it can be decoded.
+                codes[node.char] = code or '0'
                 return
             dfs(node.left, code + '0')
             dfs(node.right, code + '1')
